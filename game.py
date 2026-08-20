@@ -33,6 +33,7 @@ class Cat(pygame.sprite.Sprite):
         self.speed = 400
         self.jump = 100
         self.is_on_floor = False
+        self.against_platform = False
         self.is_animating = False
         self.gravity = 0.8
         self.final_velocity = 16
@@ -85,6 +86,9 @@ class Cat(pygame.sprite.Sprite):
         if keys[pygame.K_UP]:
             self.rect.y -= self.jump * dt
 
+        if self.against_platform:
+            self.rect.x = old_rect_x
+
     def check_in_bounds(self):
         if self.rect.y > 1300:
             return False
@@ -106,6 +110,17 @@ class Box(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.timer = 0
+
+    def crumble(self, dt):
+        self.timer += dt
+
+        if self.timer >= 0.3:
+            self.image = pygame.image.load(os.path.join('sprites', 'box break 1.png')).convert_alpha()
+        if self.timer >= 0.6:
+            self.image = pygame.image.load(os.path.join('sprites', 'box break 2.png')).convert_alpha()
+        if self.timer >= 0.9:
+            self.kill()
 
 platform0 = Platform(0, 400)
 platform1 = Platform(64, 400)
@@ -114,9 +129,11 @@ platform3 = Platform(300, 500)
 platform4 = Platform(372, 500)
 platform5 = Platform(444, 500)
 platform6 = Platform(520, 580)
+box0 = Box(400, 468)
 cat = Cat()
 
 platforms = pygame.sprite.Group()
+boxes = pygame.sprite.Group()
 player = pygame.sprite.Group()
 platforms.add(platform0)
 platforms.add(platform1)
@@ -125,6 +142,7 @@ platforms.add(platform3)
 platforms.add(platform4)
 platforms.add(platform5)
 platforms.add(platform6)
+boxes.add(box0)
 player.add(cat)
 
 first_screen = True
@@ -150,11 +168,20 @@ while running:
     if pygame.sprite.spritecollideany(cat, platforms):
         elements = pygame.sprite.spritecollide(cat, platforms, False)
         for platform in elements:
+            # checking for collisions with floor
             if cat.rect.bottom <= platform.rect.top + 10:
                 cat.rect.bottom = platform.rect.top             
                 cat.is_on_floor = True
+            if cat.rect.top >= platform.rect.bottom - 10:
+                cat.rect.top = platform.rect.bottom
     else:
         cat.is_on_floor = False
+
+    if pygame.sprite.spritecollideany(cat, boxes):
+        collided_boxes = pygame.sprite.spritecollide(cat, boxes, False)
+        for box in collided_boxes:
+            cat.is_on_floor = True
+            box.crumble(dt)
 
     if not cat.check_in_bounds():
         running = False
@@ -165,6 +192,7 @@ while running:
     for object in platforms:
         object.rect.x -= x_scroll
     platforms.draw(screen)
+    boxes.draw(screen)
     window.flip()
     dt = clock.tick(60) / 1000.0
 
