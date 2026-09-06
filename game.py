@@ -31,7 +31,7 @@ class Cat(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.y = 300
         self.speed = 400
-        self.jump = 100
+        self.jump = 70
         self.is_on_floor = False
         self.against_platform = False
         self.is_animating = False
@@ -39,7 +39,7 @@ class Cat(pygame.sprite.Sprite):
         self.final_velocity = 16
         self.velocity_y = 0
         self.current_frame_index = 0
-        self.animation_timer = 100
+        self.animation_timer = 0
         self.animation_speed = 0.4
         self.health = 5
 
@@ -49,12 +49,13 @@ class Cat(pygame.sprite.Sprite):
             self.image = default_cat
 
     def move(self):
-        self.velocity_y += self.gravity * dt
-        if self.velocity_y >= self.final_velocity:
-            self.velocity_y = self.final_velocity
-        
         old_rect_y = self.rect.y
         old_rect_x = self.rect.x
+        
+        self.velocity_y += self.gravity * dt
+
+        if self.velocity_y >= self.final_velocity:
+            self.velocity_y = self.final_velocity
 
         if self.is_on_floor:
             self.velocity_y = 0
@@ -83,8 +84,8 @@ class Cat(pygame.sprite.Sprite):
                 if self.current_frame_index >= len(walking_right_frames):
                     self.current_frame_index = 0
                 self.image = walking_right_frames[self.current_frame_index]
-        if keys[pygame.K_UP]:
-            self.rect.y -= self.jump * dt
+        if keys[pygame.K_UP] and self.is_on_floor:
+            self.rect.y -= 4000 * dt
 
         if self.against_platform:
             self.rect.x = old_rect_x
@@ -102,6 +103,8 @@ class Platform(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.originalx = x
+        self.originaly = y
 
 class Box(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -110,6 +113,8 @@ class Box(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.originalx = x
+        self.originaly = y
         self.timer = 0
 
     def crumble(self, dt):
@@ -122,18 +127,31 @@ class Box(pygame.sprite.Sprite):
         if self.timer >= 0.9:
             self.kill()
 
+class Pond(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+            super().__init__()
+            self.image = pygame.image.load(os.path.join('sprites', 'pond.png')).convert_alpha()
+            self.rect = self.image.get_rect()
+            self.rect.x = x
+            self.rect.y = y
+
 platform0 = Platform(0, 400)
-platform1 = Platform(64, 400)
-platform2 = Platform(128, 400)
+platform1 = Platform(platform0.rect.x + platform0.rect.width, 400)
+platform2 = Platform(platform1.rect.x + platform1.rect.width, 400)
 platform3 = Platform(300, 500)
-platform4 = Platform(372, 500)
-platform5 = Platform(444, 500)
-platform6 = Platform(520, 580)
-box0 = Box(400, 468)
+platform4 = Platform(platform3.rect.x + platform3.rect.width, 500)
+box0 = Box(400, 500 - platform4.rect.height)
+platform5 = Platform(platform4.rect.x + platform4.rect.width, 500)
+platform6 = Platform(550, 580)
+platform7 = Platform(platform6.rect.x + platform6.rect.width, 580)
+box1 = Box(platform7.rect.x + platform7.rect.width, 580)
+platform8 = Platform(850, 500)
+pond0 = Platform(platform8.rect.x + platform8.rect.width, 500)
 cat = Cat()
 
 platforms = pygame.sprite.Group()
 boxes = pygame.sprite.Group()
+ponds = pygame.sprite.Group()
 player = pygame.sprite.Group()
 platforms.add(platform0)
 platforms.add(platform1)
@@ -142,7 +160,10 @@ platforms.add(platform3)
 platforms.add(platform4)
 platforms.add(platform5)
 platforms.add(platform6)
+platforms.add(platform7)
+platforms.add(platform8)
 boxes.add(box0)
+boxes.add(box1)
 player.add(cat)
 
 first_screen = True
@@ -154,26 +175,23 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-                cat.is_animating = False
 
+    previous_x_scroll = x_scroll
+
+    if cat.rect.x >= (WINDOW_WIDTH / 2):
+        x_scroll = cat.rect.x - (WINDOW_WIDTH / 2)
+        
+    heart_image = pygame.image.load(os.path.join('sprites', 'heart.png'))
+    heart_rect = heart_image.get_rect()
     for heart in range(0, cat.health):
-        heart_image = pygame.image.load(os.path.join('sprites', 'heart.png'))
-        heart_rect = heart_image.get_rect()
-        heart_rect.y = 50
-        heart_rect.x = heart * 20
-        screen.blit(heart_image, heart_rect)
+        width = heart_rect.width
+        height = heart_rect.height
+        y = 50
+        x = heart * 20
+        screen.blit(heart_image, pygame.Rect(x, y, width, height))
 
     if pygame.sprite.spritecollideany(cat, platforms):
-        elements = pygame.sprite.spritecollide(cat, platforms, False)
-        for platform in elements:
-            # checking for collisions with floor
-            if cat.rect.bottom <= platform.rect.top + 10:
-                cat.rect.bottom = platform.rect.top             
-                cat.is_on_floor = True
-            if cat.rect.top >= platform.rect.bottom - 10:
-                cat.rect.top = platform.rect.bottom
+        cat.is_on_floor = True
     else:
         cat.is_on_floor = False
 
@@ -189,8 +207,11 @@ while running:
     screen.fill((153, 219, 232))
     player.update()
     player.draw(screen)
-    for object in platforms:
-        object.rect.x -= x_scroll
+    if previous_x_scroll != x_scroll:
+        for object in platforms:
+            object.rect.x = object.originalx - x_scroll
+        for box in boxes:
+            box.rect.x = box.originalx - x_scroll
     platforms.draw(screen)
     boxes.draw(screen)
     window.flip()
