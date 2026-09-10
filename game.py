@@ -129,11 +129,19 @@ class Box(pygame.sprite.Sprite):
 
 class Pond(pygame.sprite.Sprite):
     def __init__(self, x, y):
-            super().__init__()
-            self.image = pygame.image.load(os.path.join('sprites', 'pond.png')).convert_alpha()
-            self.rect = self.image.get_rect()
-            self.rect.x = x
-            self.rect.y = y
+        super().__init__()
+        self.image = pygame.image.load(os.path.join('sprites', 'pond.png')).convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+class Heart(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.transform.scale_by(pygame.image.load(os.path.join('sprites', 'heart.png')).convert_alpha(), 0.4)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
 
 platform0 = Platform(0, 400)
 platform1 = Platform(platform0.rect.x + platform0.rect.width, 400)
@@ -148,11 +156,17 @@ box1 = Box(platform7.rect.x + platform7.rect.width, 580)
 platform8 = Platform(850, 500)
 pond0 = Platform(platform8.rect.x + platform8.rect.width, 500)
 cat = Cat()
+health1 = Heart(20, 20)
+health2 = Heart(health1.rect.x + 20 + health1.rect.width, 20)
+health3 = Heart(health2.rect.x + 20 + health2.rect.width, 20)
+health4 = Heart(health3.rect.x + 20 + health3.rect.width, 20)
+health5 = Heart(health4.rect.x + 20 + health4.rect.width, 20)
 
 platforms = pygame.sprite.Group()
 boxes = pygame.sprite.Group()
 ponds = pygame.sprite.Group()
 player = pygame.sprite.Group()
+health = pygame.sprite.Group()
 platforms.add(platform0)
 platforms.add(platform1)
 platforms.add(platform2)
@@ -164,6 +178,11 @@ platforms.add(platform7)
 platforms.add(platform8)
 boxes.add(box0)
 boxes.add(box1)
+health.add(health1)
+health.add(health2)
+health.add(health3)
+health.add(health4)
+health.add(health5)
 player.add(cat)
 
 first_screen = True
@@ -180,15 +199,18 @@ while running:
 
     if cat.rect.x >= (WINDOW_WIDTH / 2):
         x_scroll = cat.rect.x - (WINDOW_WIDTH / 2)
-        
-    heart_image = pygame.image.load(os.path.join('sprites', 'heart.png'))
-    heart_rect = heart_image.get_rect()
-    for heart in range(0, cat.health):
-        width = heart_rect.width
-        height = heart_rect.height
-        y = 50
-        x = heart * 20
-        screen.blit(heart_image, pygame.Rect(x, y, width, height))
+
+    if cat.health == 4:
+        health5.kill()
+    elif cat.health == 3:
+        health4.kill()
+    elif cat.health == 2:
+        health3.kill()
+    elif cat.health == 1:
+        health2.kill()
+    elif cat.health == 0:
+        health1.kill()
+        running = False
 
     if pygame.sprite.spritecollideany(cat, platforms):
         cat.is_on_floor = True
@@ -214,6 +236,7 @@ while running:
             box.rect.x = box.originalx - x_scroll
     platforms.draw(screen)
     boxes.draw(screen)
+    health.draw(screen)
     window.flip()
     dt = clock.tick(60) / 1000.0
 
