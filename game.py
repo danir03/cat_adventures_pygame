@@ -96,6 +96,15 @@ class Cat(pygame.sprite.Sprite):
         else:
             return True
 
+    def touched_water(self, dt):
+        wet_timer = 0
+        self.image = pygame.image.load(os.path.join('sprites', 'cat-wet.png')).convert_alpha()
+
+        if wet_timer < 0.8:
+            wet_timer += dt
+
+        self.image = default_cat
+
 class Platform(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -134,6 +143,8 @@ class Pond(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.originalx = x
+        self.originaly = y
 
 class Heart(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -154,13 +165,15 @@ platform6 = Platform(550, 580)
 platform7 = Platform(platform6.rect.x + platform6.rect.width, 580)
 box1 = Box(platform7.rect.x + platform7.rect.width, 580)
 platform8 = Platform(850, 500)
-pond0 = Platform(platform8.rect.x + platform8.rect.width, 500)
+pond0 = Pond(platform8.rect.x + platform8.rect.width, 500)
 cat = Cat()
 health1 = Heart(20, 20)
-health2 = Heart(health1.rect.x + 20 + health1.rect.width, 20)
-health3 = Heart(health2.rect.x + 20 + health2.rect.width, 20)
-health4 = Heart(health3.rect.x + 20 + health3.rect.width, 20)
-health5 = Heart(health4.rect.x + 20 + health4.rect.width, 20)
+health2 = Heart(health1.rect.x + 10 + health1.rect.width, 20)
+health3 = Heart(health2.rect.x + 10 + health2.rect.width, 20)
+health4 = Heart(health3.rect.x + 10 + health3.rect.width, 20)
+health5 = Heart(health4.rect.x + 10 + health4.rect.width, 20)
+
+health_dict = {"heart1":health1, "heart2":health2, "heart3":health3, "heart4":health4, "heart5":health5}
 
 platforms = pygame.sprite.Group()
 boxes = pygame.sprite.Group()
@@ -178,6 +191,7 @@ platforms.add(platform7)
 platforms.add(platform8)
 boxes.add(box0)
 boxes.add(box1)
+ponds.add(pond0)
 health.add(health1)
 health.add(health2)
 health.add(health3)
@@ -200,16 +214,10 @@ while running:
     if cat.rect.x >= (WINDOW_WIDTH / 2):
         x_scroll = cat.rect.x - (WINDOW_WIDTH / 2)
 
-    if cat.health == 4:
-        health5.kill()
-    elif cat.health == 3:
-        health4.kill()
-    elif cat.health == 2:
-        health3.kill()
-    elif cat.health == 1:
-        health2.kill()
-    elif cat.health == 0:
-        health1.kill()
+    for num in range(1, cat.health + 1):
+        health.add(health_dict[f"heart{num}"])
+    
+    if cat.health == 0:
         running = False
 
     if pygame.sprite.spritecollideany(cat, platforms):
@@ -223,6 +231,9 @@ while running:
             cat.is_on_floor = True
             box.crumble(dt)
 
+    if pygame.sprite.spritecollideany(cat, ponds):
+        cat.touched_water(dt)
+
     if not cat.check_in_bounds():
         running = False
         
@@ -234,9 +245,13 @@ while running:
             object.rect.x = object.originalx - x_scroll
         for box in boxes:
             box.rect.x = box.originalx - x_scroll
+        for pond in ponds:
+            pond.rect.x = pond.originalx - x_scroll
     platforms.draw(screen)
     boxes.draw(screen)
+    ponds.draw(screen)
     health.draw(screen)
+    health.empty()
     window.flip()
     dt = clock.tick(60) / 1000.0
 
